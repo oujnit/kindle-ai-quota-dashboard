@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Kindle AI Quota Dashboard</title>
+<style>
+:root {
+  --bg: #FFFFFF; --fg: #000000; --mid: #444444; --light: #666666;
+  --faint: #999999; --border: #AAAAAA; --border-light: #CCCCCC;
+  --bar-bg: #DDDDDD; --bar-fill: #333333; --card-bg: #F8F8F8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #181818; --fg: #E0E0E0; --mid: #AAAAAA; --light: #777777;
+    --faint: #444444; --border: #333333; --border-light: #282828;
+    --bar-bg: #2A2A2A; --bar-fill: #AAAAAA; --card-bg: #1E1E1E;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #181818; --fg: #E0E0E0; --mid: #AAAAAA; --light: #777777;
+  --faint: #444444; --border: #333333; --border-light: #282828;
+  --bar-bg: #2A2A2A; --bar-fill: #AAAAAA; --card-bg: #1E1E1E;
+}
+:root[data-theme="light"] {
+  --bg: #FFFFFF; --fg: #000000; --mid: #444444; --light: #666666;
+  --faint: #999999; --border: #AAAAAA; --border-light: #CCCCCC;
+  --bar-bg: #DDDDDD; --bar-fill: #333333; --card-bg: #F8F8F8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: Georgia, 'Noto Serif SC', 'SimSun', serif;
+  background: var(--bg); color: var(--fg);
+  width: 600px; height: 800px; overflow: hidden;
+  padding: 18px 20px 12px; display: flex; flex-direction: column;
+}
+.sans { font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif; }
+.mono { font-family: 'Consolas', 'Courier New', monospace; font-variant-numeric: tabular-nums; }
+
+/* ===== Top: DateTime + Weather ===== */
+.top-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  margin-bottom: 14px;
+}
+.weather-card, .datetime-card {
+  background: var(--card-bg); border: 1px solid var(--border-light); padding: 14px 16px;
+}
+
+/* DateTime card */
+.dt-time { font-size: 46px; font-weight: 700; line-height: 1; letter-spacing: -1.5px; }
+.dt-meta { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.dt-date { font-size: 17px; color: var(--mid); }
+.dt-week { font-size: 16px; color: var(--light); }
+.dt-battery { font-size: 15px; color: var(--light); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+.dt-battery svg { width: 16px; height: 12px; }
+
+/* Weather card */
+.w-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.w-temp { font-size: 46px; font-weight: 700; line-height: 1; }
+.w-icon { color: var(--mid); }
+.w-icon svg { width: 36px; height: 36px; }
+.w-detail { font-size: 15px; color: var(--light); line-height: 1.7; }
+
+/* ===== Quote ===== */
+.quote {
+  text-align: center; padding: 10px 20px;
+  border: 1px solid var(--border-light); position: relative;
+  margin-bottom: 14px;
+}
+.quote::before, .quote::after {
+  position: absolute; font-size: 28px; color: var(--faint); font-family: Georgia, serif; line-height: 1;
+}
+.quote::before { content: '\201C'; top: 6px; left: 12px; }
+.quote::after { content: '\201D'; bottom: 2px; right: 12px; }
+.quote-text { font-size: 22px; line-height: 1.8; font-style: italic; margin-bottom: 4px; }
+.quote-src { font-size: 14px; color: var(--light); letter-spacing: 0.05em; }
+
+/* ===== Quota cards ===== */
+.quota-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px;
+  flex: 1;
+}
+#cardDeepSeek { grid-column: 1 / -1; }
+.q-card {
+  background: var(--card-bg); border: 1px solid var(--border-light);
+  padding: 10px 12px; display: flex; flex-direction: column;
+}
+.q-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.q-head svg { width: 24px; height: 24px; flex-shrink: 0; }
+.q-name { font-size: 20px; font-weight: 600; }
+.q-glyph { font-size: 20px; font-weight: 700; width: 24px; text-align: center; }
+
+/* Single bar row */
+.q-row { margin-bottom: 8px; }
+.q-row:last-child { margin-bottom: 0; }
+.q-label {
+  display: flex; justify-content: space-between; margin-bottom: 4px;
+  font-size: 14px; color: var(--light); letter-spacing: 0.06em;
+}
+.q-label .q-pct { color: var(--mid); font-size: 17px; font-weight: 600; }
+.q-bar { height: 10px; background: var(--bar-bg); width: 100%; }
+.q-bar-fill { height: 100%; background: var(--bar-fill); }
+.q-refresh { font-size: 14px; color: var(--faint); margin-top: 3px; letter-spacing: 0.03em; }
+
+/* DeepSeek balance */
+.q-balance { font-size: 30px; font-weight: 700; margin: 8px 0 4px; }
+.q-balance-unit { font-size: 15px; font-weight: 400; color: var(--light); }
+.q-balance-sub { font-size: 14px; color: var(--faint); }
+
+/* Codex last reset line */
+.q-reset {
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-light);
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 14px; letter-spacing: 0.06em; color: var(--mid); font-weight: 600;
+}
+.q-reset .mono { font-size: 17px; font-weight: 700; }
+.q-reset-sub { font-size: 13px; color: var(--faint); margin-top: 2px; }
+.reset-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
+.reset-stat {
+  background: var(--bar-bg); padding: 6px 8px; text-align: center;
+}
+.reset-stat .rs-value { font-size: 18px; font-weight: 700; font-family: Menlo, Consolas, monospace; }
+.reset-stat .rs-label { font-size: 12px; letter-spacing: 0.08em; color: var(--faint); margin-top: 1px; }
+
+/* ===== Footer ===== */
+.footer {
+  margin-top: 10px; display: flex; justify-content: space-between; align-items: center;
+  padding-top: 8px; border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--light);
+}
+.data-alert {
+  display: none; margin: -10px 0 12px; padding: 6px 10px;
+  border: 2px solid #000; text-align: center;
+  font: 700 15px/1.3 Arial, 'Microsoft YaHei', sans-serif;
+  color: #000; background: #fff;
+}
+.data-alert.on { display: block; }
+.footer .warn { color: #000; font-weight: 700; }
+
+/* ===== 详情模式（点击卡片只看它） ===== */
+.zoom-back {
+  display: none; margin-bottom: 14px; padding: 10px 12px;
+  border: 2px solid var(--fg); font-size: 16px; font-weight: 700; text-align: center;
+}
+body.zoom-mode .zoom-back { display: block; }
+body.zoom-mode .quote, body.zoom-mode .data-alert, body.zoom-mode .footer { display: none; }
+body.zoom-mode .datetime-card { display: none; }
+body.zoom-mode .quota-grid { display: block; }
+body.zoom-card .top-row { display: none; }
+body.zoom-card .q-card:not(.zoomed) { display: none; }
+body.zoom-weather .top-row { grid-template-columns: 1fr; }
+body.zoom-weather .quota-grid { display: none; }
+
+body.zoom-mode .q-card.zoomed { padding: 4px 2px; }
+body.zoom-mode .q-card.zoomed .q-head svg { width: 36px; height: 36px; }
+body.zoom-mode .q-card.zoomed .q-name { font-size: 32px; }
+body.zoom-mode .q-card.zoomed .q-label { font-size: 18px; margin-bottom: 6px; }
+body.zoom-mode .q-card.zoomed .q-pct { font-size: 28px; }
+body.zoom-mode .q-card.zoomed .q-bar { height: 14px; margin: 4px 0; }
+body.zoom-mode .q-card.zoomed .q-refresh { font-size: 18px; margin-top: 6px; }
+body.zoom-mode .q-card.zoomed .q-reset { font-size: 20px; margin-top: 16px; padding-top: 12px; }
+body.zoom-mode .q-card.zoomed .q-reset .mono { font-size: 28px; }
+body.zoom-mode .q-card.zoomed .q-reset-sub { font-size: 18px; margin-top: 4px; }
+body.zoom-mode .q-card.zoomed .reset-stats { margin-top: 14px; }
+body.zoom-mode .q-card.zoomed .rs-value { font-size: 34px; }
+body.zoom-mode .q-card.zoomed .rs-label { font-size: 15px; margin-top: 4px; }
+body.zoom-mode .q-card.zoomed .q-balance { font-size: 56px; margin: 10px 0 6px; }
+body.zoom-mode .q-card.zoomed .q-balance-unit { font-size: 18px; }
+body.zoom-mode .q-card.zoomed .q-balance-sub { font-size: 18px; }
+
+.q-abs { display: none; }
+body.zoom-mode .q-card.zoomed .q-abs { display: inline; margin-left: 10px; }
+.q-detail-meta { display: none; }
+body.zoom-mode .q-card.zoomed .q-detail-meta {
+  display: block; font-size: 18px; color: var(--faint); margin-top: 14px;
+}
+.w-obs { display: none; }
+body.zoom-mode .weather-card .w-temp { font-size: 96px; }
+body.zoom-mode .weather-card .w-icon svg { width: 72px; height: 72px; }
+body.zoom-mode .weather-card .w-detail { font-size: 22px; line-height: 1.9; }
+body.zoom-mode .weather-card .w-obs {
+  display: block; font-size: 18px; color: var(--faint); margin-top: 10px;
+}
+</style>
+<script>
+(function () {
+  var scale = Math.min(window.innerWidth / 600, window.innerHeight / 800);
+  if (isFinite(scale) && scale > 0 && Math.abs(scale - 1) > 0.01) {
+    document.documentElement.style.zoom = scale;
+  }
+})();
+</script>
+</head>
+<body>
+
+<div class="zoom-back sans" id="zoomBack">← 点击屏幕任意位置返回总览</div>
+
+<!-- ===== Top: DateTime + Weather ===== -->
+<div class="top-row">
+  <div class="datetime-card">
+    <div class="dt-time mono" id="dtTime">--:--</div>
+    <div class="dt-meta">
+      <span class="dt-date sans" id="dtDate">----年--月--日</span>
+      <span class="dt-week sans" id="dtWeek">---</span>
+    </div>
+    <div class="dt-battery sans" id="dtBattery">
+      <svg viewBox="-0.5 0 28 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="0" y="1" width="22" height="12" rx="2"/><rect x="22" y="4" width="3" height="6" rx="1"/><rect x="2" y="3" width="11" height="8" fill="currentColor" stroke="none" id="batFill"/></svg>
+      <span id="batPct">--%</span>
+    </div>
+  </div>
+
+  <div class="weather-card">
+    <div class="w-row">
+      <span class="w-temp" id="weatherTemp">25°</span>
+      <span class="w-icon" id="weatherIcon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30"><path fill="currentColor" d="M3.89 17.6c0-.99.31-1.88.93-2.65s1.41-1.27 2.38-1.49c.26-1.17.85-2.14 1.78-2.88c.93-.75 2-1.12 3.22-1.12c1.18 0 2.24.36 3.16 1.09c.93.73 1.53 1.66 1.8 2.8h.27c1.18 0 2.18.41 3.01 1.24s1.25 1.83 1.25 3c0 1.18-.42 2.18-1.25 3.01s-1.83 1.25-3.01 1.25H8.16c-.58 0-1.13-.11-1.65-.34s-.99-.51-1.37-.89s-.68-.84-.91-1.36s-.34-1.09-.34-1.66m1.45 0c0 .76.28 1.42.82 1.96s1.21.82 1.99.82h9.28c.77 0 1.44-.27 1.99-.82s.83-1.2.83-1.96s-.27-1.42-.83-1.96c-.55-.54-1.21-.82-1.99-.82h-1.39q-.15 0-.15-.15l-.07-.49c-.1-.94-.5-1.73-1.19-2.35s-1.51-.93-2.45-.93s-1.76.31-2.46.94c-.7.62-1.09 1.41-1.18 2.34l-.07.42c0 .1-.05.15-.16.15l-.45.07c-.72.06-1.32.36-1.81.89c-.46.53-.71 1.16-.71 1.89m8.85-8.72c-.1.09-.08.16.07.21c.43.19.79.37 1.08.55c.11.03.19.02.22-.03c.61-.57 1.31-.86 2.12-.86s1.5.27 2.1.81c.59.54.92 1.21.99 2l.09.64h1.42c.65 0 1.21.23 1.68.7s.7 1.02.7 1.66c0 .6-.21 1.12-.62 1.57s-.92.7-1.53.77c-.1 0-.15.05-.15.16v1.13c0 .11.05.16.15.16c1.01-.06 1.86-.46 2.55-1.19s1.04-1.6 1.04-2.6c0-1.06-.37-1.96-1.12-2.7c-.75-.75-1.65-1.12-2.7-1.12h-.15c-.26-1-.81-1.82-1.65-2.47c-.83-.65-1.77-.97-2.8-.97c-1.4-.01-2.57.52-3.49 1.58"/></svg></span>
+    </div>
+    <div class="w-detail sans" id="weatherDetail">体感 28° · 湿度 85%<br>风 4km/h · 北京</div>
+    <div class="w-obs sans" id="weatherObs"></div>
+  </div>
+</div>
+
+<div class="data-alert" id="dataAlert"></div>
+
+<!-- ===== Quote ===== -->
+<div class="quote">
+  <div class="quote-text" id="quoteText">重要的东西，用眼睛是看不见的。</div>
+  <div class="quote-src sans" id="quoteSrc">— 圣·埃克苏佩里 ·《小王子》</div>
+</div>
+
+<!-- ===== AI Quotas ===== -->
+<div class="quota-grid">
+  <!-- GLM (Zhipu ZAI) -->
+  <div class="q-card" id="cardZai">
+    <div class="q-head">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M0 0h32v32H0z" fill="none"/><path fill="currentColor" d="m7.5 20.61l5.5-3.08l.1-.27l-.1-.15h-.27l-.92-.06a234 234 0 0 1-8.51-.34l-.67-.14l-.62-.82l.06-.41l.56-.38l.8.07c3.08.2 6.15.4 9.21.72h.46l.06-.19l-.16-.1l-.12-.12l-2.74-1.86c-2.04-1.3-3.55-2.43-5.38-3.68l-.43-.54l-.18-1.18l.76-.84l1.03.07l.26.07c2.03 1.6 4.1 3.14 6.17 4.66l.43.36l.17-.12l.02-.09l-.2-.32c-1.43-2.6-2.55-4.62-4-6.96l-.2-.72c-.08-.3-.13-.55-.13-.85l.87-1.18l.49-.16l1.16.16l.49.42c1.4 3.31 2.76 5.93 4.23 8.83l.29.97l.1.3h.19v-.17c.65-3.42 0-6.57 1.22-9.53l.87-.57l.68.33l.56.8l-.08.51c-.37 2.62-.92 5.22-1.4 7.82h.24l.29-.29a69 69 0 0 1 4.91-5.94l.64-.5h1.2l.89 1.32l-.4 1.36a53.5 53.5 0 0 0-4.66 6.47l.09.13l.22-.02c2.4-.57 4.84-.99 7.27-1.4l.97.45l.1.46l-.37.94c-3 .72-6 1.34-9 2.05l-.05.04l.06.07c2.7.26 5.62.3 7.99.47l.92.61l.55.75l-.1.56l-1.4.73c-2.93-.7-5.19-1.22-7.91-1.9h-.22v.13c2.18 2.12 4.6 4.27 6.54 6.07l.15.68l-.38.53l-.4-.06c-2.04-1.43-3.9-3.09-5.8-4.7h-.15v.2l.52.76c1.14 1.79 2.64 3.25 2.87 5.37l-.2.41l-.7.25l-.78-.14a73 73 0 0 1-4.58-7.04l-.17.09l-.78 8.46l-.37.43l-.85.33l-.71-.54l-.38-.87a114 114 0 0 0 1.53-7.97l.2-.73l-.01-.05l-.16.02a77 77 0 0 1-6.23 7.88l-.48.2l-.84-.44l.08-.77l.47-.69c2.07-2.57 3.54-4.66 5.54-7v-.19h-.07l-7.4 4.8l-1.31.17l-.57-.53l.07-.87l.27-.28l2.23-1.53z"/></svg>
+      <span class="q-name sans">GLM</span>
+    </div>
+    <div class="q-row">
+      <div class="q-label sans"><span>5H QUOTA</span><span class="q-pct mono">38%</span></div>
+      <div class="q-bar"><div class="q-bar-fill" style="width:38%"></div></div>
+      <div class="q-refresh sans"><span class="q-rel">↻ 2h07m</span><span class="q-abs mono"></span></div>
+    </div>
+    <div class="q-row">
+      <div class="q-label sans"><span>WEEKLY</span><span class="q-pct mono">62%</span></div>
+      <div class="q-bar"><div class="q-bar-fill" style="width:62%"></div></div>
+      <div class="q-refresh sans"><span class="q-rel">↻ Mon</span><span class="q-abs mono"></span></div>
+    </div>
+    <div class="q-detail-meta sans" id="cardZaiMeta"></div>
+  </div>
+
+  <!-- GPT / Codex -->
+  <div class="q-card" id="cardCodex">
+    <div class="q-head">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M11.745 14.85L6.905 12V7c0-2.21 1.824-4 4.076-4c1.397 0 2.63.69 3.365 1.741"/><path d="M9.6 19.18A4.1 4.1 0 0 0 13.02 21c2.25 0 4.076-1.79 4.076-4v-5L12.16 9.097"/><path d="M9.452 13.5V7.67l4.412-2.5c1.95-1.105 4.443-.45 5.569 1.463a3.93 3.93 0 0 1 .076 3.866"/><path d="M4.49 13.5a3.93 3.93 0 0 0 .075 3.866c1.126 1.913 3.62 2.568 5.57 1.464l4.412-2.5l.096-5.596"/><path d="M17.096 17.63a4.09 4.09 0 0 0 3.357-1.996c1.126-1.913.458-4.36-1.492-5.464l-4.413-2.5l-5.059 2.755"/><path d="M6.905 6.37a4.09 4.09 0 0 0-3.358 1.996c-1.126 1.914-.458 4.36 1.492 5.464l4.413 2.5l5.048-2.75"/></g></svg>
+      <span class="q-name sans">Codex</span>
+    </div>
+    <div class="q-row">
+      <div class="q-label sans"><span>5H QUOTA</span><span class="q-pct mono">15%</span></div>
+      <div class="q-bar"><div class="q-bar-fill" style="width:15%"></div></div>
+      <div class="q-refresh sans"><span class="q-rel">↻ 0h52m</span><span class="q-abs mono"></span></div>
+    </div>
+    <div class="q-row">
+      <div class="q-label sans"><span>WEEKLY</span><span class="q-pct mono">45%</span></div>
+      <div class="q-bar"><div class="q-bar-fill" style="width:45%"></div></div>
+      <div class="q-refresh sans"><span class="q-rel">↻ Mon</span><span class="q-abs mono"></span></div>
+    </div>
+
+    <div class="q-reset sans"><span>LAST RESET</span><span class="mono" id="codexResetRel">--</span></div>
+    <div class="q-reset-sub sans" id="codexResetAbs">等待实时数据</div>
+    <div class="q-reset sans" id="codexWatchRow" style="display:none"><span>RESET WATCH</span><span class="mono" id="codexWatchChance">--</span></div>
+    <div class="q-reset-sub sans" id="codexWatchDetail" style="display:none"></div>
+    <div class="reset-stats">
+      <div class="reset-stat"><div class="rs-value" id="statResets">--</div><div class="rs-label sans">累计重置</div></div>
+      <div class="reset-stat"><div class="rs-value" id="statAvg">--</div><div class="rs-label sans">平均间隔</div></div>
+      <div class="reset-stat"><div class="rs-value" id="statLongest">--</div><div class="rs-label sans">最长等待</div></div>
+    </div>
+    <div class="q-detail-meta sans" id="cardCodexMeta"></div>
+  </div>
+
+  <!-- DeepSeek -->
+  <div class="q-card" id="cardDeepSeek">
+    <div class="q-head">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path fill="currentColor" d="M23.75 4.927c-.245-.12-.34.108-.482.224c-.049.038-.09.087-.131.13c-.357.384-.773.634-1.315.604c-.796-.044-1.474.207-2.074.818c-.127-.754-.551-1.203-1.195-1.492c-.338-.15-.68-.3-.915-.626c-.165-.231-.21-.49-.293-.744c-.052-.153-.105-.31-.28-.337c-.192-.03-.266.13-.341.265c-.3.55-.416 1.158-.406 1.772c.027 1.382.608 2.482 1.762 3.266c.132.09.166.18.124.311c-.079.27-.172.531-.255.8c-.052.173-.13.211-.314.135A5.3 5.3 0 0 1 15.97 8.92c-.82-.797-1.563-1.677-2.489-2.366a11 11 0 0 0-.66-.454c-.944-.922.125-1.679.372-1.768c.259-.093.09-.416-.747-.412c-.835.004-1.6.285-2.574.659c-.143.057-.326.153-.446.13a9.2 9.2 0 0 0-2.763-.096c-1.806.203-3.25 1.06-4.31 2.525c-1.275 1.76-1.574 3.759-1.207 5.846c.385 2.197 1.502 4.019 3.22 5.442c1.78 1.474 3.83 2.197 6.169 2.058c1.42-.081 3.003-.273 4.786-1.789c.45.224.922.313 1.707.381c.603.057 1.184-.03 1.634-.123c.704-.15.655-.804.4-.926c-2.065-.966-1.612-.573-2.024-.89c1.05-1.248 2.632-2.544 3.25-6.741c.049-.334.007-.543 0-.814c-.003-.163.034-.228.22-.247a4 4 0 0 0 1.482-.457c1.338-.734 1.867-1.939 1.995-3.385c.019-.22-.004-.45-.236-.565"/></svg>
+      <span class="q-name sans">DeepSeek</span>
+    </div>
+    <div class="q-balance mono"><span id="deepSeekBalance">¥ --</span> <span class="q-balance-unit sans">API Balance</span></div>
+    <div class="q-balance-sub sans" id="deepSeekDetail">等待实时数据</div>
+    <div class="q-detail-meta sans" id="cardDeepSeekMeta"></div>
+  </div>
+</div>
+
+<!-- ===== Footer ===== -->
+<div class="footer sans">
+  <span>Kindle AI Quota Dashboard</span>
+  <span id="dataStatus">等待实时数据</span>
+</div>
+
+<script>
+window.DASH_DATA = {
+  "updatedAt": "2026-09-06T05:45:09.007+08:00",
+  "weather": {
+    "ok": true,
+    "description": "毛毛雨",
+    "iconKey": "rain",
+    "tempC": 24.5,
+    "feelsLikeC": 30.6,
+    "humidity": 98,
+    "windKph": 0.8,
+    "windDir": "西南风",
+    "place": "深圳",
+    "observedAt": "2026-09-06T05:45:00.000+08:00",
+    "fetchedAt": "2026-09-06T05:45:09.008+08:00",
+    "error": null
+  },
+  "quote": null,
+  "codexResets": {
+    "ok": true,
+    "label": "Codex Resets",
+    "resetAt": "2026-09-05T08:39:25.000+08:00",
+    "watch": null,
+    "resets": "51",
+    "avgInterval": "7.1d",
+    "longestWait": "67.7d",
+    "sourceUrl": "https://codex-resets.com/",
+    "fetchedAt": "2026-09-06T05:45:07.770+08:00",
+    "error": null
+  },
+  "sources": {
+    "claude": {
+      "ok": false,
+      "label": "Claude",
+      "windows": [],
+      "fetchedAt": "2026-09-06T05:45:07.756+08:00",
+      "error": "未启用",
+      "disabled": true
+    },
+    "codex": {
+      "ok": true,
+      "label": "Codex",
+      "windows": [
+        {
+          "name": "5小时",
+          "usedPct": 0,
+          "resetAt": "2026-09-06T10:45:08.000+08:00"
+        },
+        {
+          "name": "周",
+          "usedPct": 46,
+          "resetAt": "2026-09-07T11:03:39.000+08:00"
+        }
+      ],
+      "fetchedAt": "2026-09-06T05:45:07.758+08:00",
+      "error": null
+    },
+    "kimi": {
+      "ok": false,
+      "label": "Kimi",
+      "windows": [],
+      "fetchedAt": "2026-09-06T05:45:07.759+08:00",
+      "error": "未启用",
+      "disabled": true
+    },
+    "deepseek": {
+      "ok": true,
+      "label": "DeepSeek",
+      "balance": 52.03,
+      "currency": "CNY",
+      "detail": "余额 ¥52.03",
+      "fetchedAt": "2026-09-06T05:45:07.760+08:00",
+      "error": null
+    },
+    "zai": {
+      "ok": true,
+      "label": "GLM",
+      "windows": [
+        {
+          "name": "5小时",
+          "usedPct": 0,
+          "resetAt": null
+        },
+        {
+          "name": "周",
+          "usedPct": 49,
+          "resetAt": "2026-09-07T09:05:09.998+08:00"
+        }
+      ],
+      "fetchedAt": "2026-09-06T05:45:07.767+08:00",
+      "error": null
+    }
+  }
+};
+</script>
+<script>
+window.DASH_LIVE_ENDPOINT = 'data.js';
+</script>
+<script>
+(function (win, doc) {
+  'use strict';
+
+  var settings = {
+    fallbackData: 'data.js',
+    endpointPointer: 'live-endpoint.js',
+    pollEvery: 3 * 60 * 1000,
+    pollOffset: 5000,
+    quietStart: 3,
+    quietEnd: 8
+  };
+  var state = {
+    endpoint: win.DASH_LIVE_ENDPOINT || settings.fallbackData,
+    latest: null,
+    renderedAt: '',
+    zoomedCard: null
+  };
+  var weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+  var ui = {
+    find: function (id) {
+      return doc.getElementById(id);
+    },
+    textNode: function (node, value) {
+      var next = String(value);
+      if (node && node.textContent !== next) node.textContent = next;
+    },
+    text: function (id, value) {
+      ui.textNode(ui.find(id), value);
+    },
+    html: function (node, value) {
+      if (node && node.innerHTML !== value) node.innerHTML = value;
+    },
+    className: function (node, value) {
+      if (node && node.className !== value) node.className = value;
+    },
+    style: function (node, name, value) {
+      if (node && node.style[name] !== value) node.style[name] = value;
+    },
+    attribute: function (node, name, value) {
+      var next = String(value);
+      if (node && node.getAttribute(name) !== next) node.setAttribute(name, next);
+    }
+  };
+
+  function twoDigits(value) {
+    return value < 10 ? '0' + value : String(value);
+  }
+
+  function timestamp(value) {
+    var parsed = Date.parse(value || '');
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  function clockText(value) {
+    var date = new Date(value);
+    if (isNaN(date.getTime())) return '--:--';
+    return twoDigits(date.getHours()) + ':' + twoDigits(date.getMinutes());
+  }
+
+  function isQuiet(date) {
+    var hour = (date || new Date()).getHours();
+    return hour >= settings.quietStart && hour < settings.quietEnd;
+  }
+
+  function millisecondsUntilMorning(date) {
+    var now = date || new Date();
+    var morning = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      settings.quietEnd,
+      0,
+      5,
+      0
+    );
+    return Math.max(1000, morning.getTime() - now.getTime());
+  }
+
+  function updateFreshness() {
+    var lastUpdate = state.latest && state.latest.updatedAt;
+    var age = lastUpdate
+      ? Math.floor((Date.now() - timestamp(lastUpdate)) / 60000)
+      : 99999;
+    var lastClock = clockText(lastUpdate);
+    var status = ui.find('dataStatus');
+    var alert = ui.find('dataAlert');
+
+    if (state.latest) {
+      ui.text('relTime', age < 1 ? '刚刚更新' : age + '分钟前更新');
+    }
+
+    if (isQuiet()) {
+      ui.textNode(status, '夜间省电 · 08:00恢复');
+      ui.className(status, '');
+      ui.textNode(alert, '');
+      ui.className(alert, 'data-alert');
+      return;
+    }
+
+    if (!state.latest || age > 15) {
+      ui.textNode(status, '离线 · 最后 ' + lastClock);
+      ui.className(status, 'warn');
+      ui.textNode(alert, '电脑或数据链路已离线 · 最后在线 ' + lastClock);
+      ui.className(alert, 'data-alert on');
+      return;
+    }
+
+    if (age >= 7) {
+      ui.textNode(status, '延迟 ' + age + ' 分钟 · ' + lastClock);
+      ui.className(status, 'warn');
+      ui.textNode(alert, '实时数据延迟 ' + age + ' 分钟 · 正在显示最后一次结果');
+      ui.className(alert, 'data-alert on');
+      return;
+    }
+
+    ui.textNode(status, '实时 · ' + lastClock);
+    ui.className(status, '');
+    ui.textNode(alert, '');
+    ui.className(alert, 'data-alert');
+  }
+
+  function updateClock() {
+    var now = new Date();
+    ui.text('dtTime', twoDigits(now.getHours()) + ':' + twoDigits(now.getMinutes()));
+    ui.text('dtDate', now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日');
+    ui.text('dtWeek', weekdays[now.getDay()]);
+    updateFreshness();
+  }
+
+  function queryValue(name) {
+    var match = String(location.search || '').match(
+      new RegExp('[?&]' + name + '=([^&]*)')
+    );
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  function showBattery(percent, charging) {
+    percent = Math.max(0, Math.min(100, percent));
+    ui.text('batPct', (charging ? '⚡ ' : '') + percent + '%');
+    ui.attribute(ui.find('batFill'), 'width', Math.round(18 * percent / 100));
+  }
+
+  function updateBattery() {
+    var percentText = queryValue('battery');
+    var chargeText = queryValue('charging');
+    var percent = percentText !== null ? Number(percentText) : null;
+    var charging = chargeText === '1';
+    var device = win.KINDLE_DEVICE;
+
+    if (device) {
+      if (typeof device.battery === 'number') percent = device.battery;
+      if (typeof device.charging === 'boolean') charging = device.charging;
+      if (device.charging === 0 || device.charging === 1) charging = device.charging === 1;
+    }
+    if (percent === null || isNaN(percent)) {
+      var batteryApi = win.navigator && win.navigator.getBattery;
+      if (batteryApi) {
+        batteryApi.call(win.navigator).then(function (battery) {
+          var update = function () {
+            showBattery(Math.round(battery.level * 100), battery.charging === true);
+          };
+          update();
+          battery.addEventListener('levelchange', update);
+          battery.addEventListener('chargingchange', update);
+        }).catch(function () {});
+      }
+      return;
+    }
+    showBattery(percent, charging);
+  }
+
+
+  function attachScript(url, onSuccess, onFailure) {
+    var script = doc.createElement('script');
+    script.async = true;
+    script.src = url;
+    script.onload = function () {
+      if (script.parentNode) script.parentNode.removeChild(script);
+      if (onSuccess) onSuccess();
+    };
+    script.onerror = function () {
+      if (script.parentNode) script.parentNode.removeChild(script);
+      if (onFailure) onFailure();
+    };
+    doc.getElementsByTagName('head')[0].appendChild(script);
+  }
+
+  function requestDeviceStatus() {
+    attachScript('device-status.js?_=' + Date.now(), updateBattery);
+  }
+
+  function windowTitle(value) {
+    var name = String(value || '');
+    if (/5小时|5H/i.test(name)) return '5H QUOTA';
+    if (/7天|周|WEEK/i.test(name)) return 'WEEKLY';
+    if (/月|MONTH/i.test(name)) return 'MONTHLY';
+    return name || 'QUOTA';
+  }
+
+  function remainingTime(value) {
+    var remaining = timestamp(value) - Date.now();
+    var minutes;
+    var days;
+    var hours;
+    if (!value || !remaining) return '↻ 未提供刷新时间';
+    if (remaining <= 0) return '↻ 即将刷新';
+
+    minutes = Math.ceil(remaining / 60000);
+    days = Math.floor(minutes / 1440);
+    hours = Math.floor((minutes % 1440) / 60);
+    minutes %= 60;
+    if (days) return '↻ ' + days + 'd' + (hours ? ' ' + hours + 'h' : '');
+    if (hours) return '↻ ' + hours + 'h' + twoDigits(minutes) + 'm';
+    return '↻ ' + minutes + 'm';
+  }
+
+  function showUnavailableQuota(rows) {
+    var labels;
+    var texts;
+    if (!rows.length) return;
+    ui.style(rows[0], 'display', 'block');
+    labels = rows[0].querySelectorAll('.q-label span');
+    if (labels.length > 1) {
+      ui.textNode(labels[0], '获取失败');
+      ui.textNode(labels[1], '--');
+    }
+    ui.style(rows[0].querySelector('.q-bar-fill'), 'width', '0%');
+    texts = rowRefreshTexts(rows[0]);
+    ui.textNode(texts.rel, '↻ 等待下次采集');
+    ui.textNode(texts.abs, '');
+  }
+
+  // 相对刷新时间与绝对刷新时间分属两个 span，详情模式才显示绝对时间
+  function rowRefreshTexts(row) {
+    var refresh = row.querySelector('.q-refresh');
+    return {
+      rel: refresh ? (refresh.querySelector('.q-rel') || refresh) : null,
+      abs: refresh ? refresh.querySelector('.q-abs') : null
+    };
+  }
+
+  function updateCardMeta(cardId, source) {
+    var parts = [];
+    var meta = ui.find(cardId + 'Meta');
+    if (!meta) return;
+    if (source && source.fetchedAt) {
+      parts.push('数据更新于 ' + cnDateTime(source.fetchedAt));
+    }
+    if (source && source.stale) parts.push('采集失败 · 显示上次成功结果');
+    ui.textNode(meta, parts.join(' · '));
+  }
+
+  function updateQuotaCard(cardId, source) {
+    var card = ui.find(cardId);
+    var rows;
+    var windows;
+    var index;
+    var texts;
+    if (!card) return;
+
+    rows = card.querySelectorAll('.q-row');
+    windows = source && source.ok && source.windows ? source.windows : [];
+    for (index = 0; index < rows.length; index += 1) {
+      var quotaWindow;
+      var labels;
+      var percentage;
+      if (index >= windows.length) {
+        ui.style(rows[index], 'display', 'none');
+        continue;
+      }
+
+      quotaWindow = windows[index];
+      ui.style(rows[index], 'display', 'block');
+      labels = rows[index].querySelectorAll('.q-label span');
+      if (labels.length > 1) {
+        ui.textNode(labels[0], windowTitle(quotaWindow.name));
+        ui.textNode(
+          labels[1],
+          quotaWindow.displayValue != null
+            ? String(quotaWindow.displayValue)
+            : Math.round(Number(quotaWindow.usedPct) || 0) + '%'
+        );
+      }
+
+      percentage = quotaWindow.barPct != null
+        ? quotaWindow.barPct
+        : quotaWindow.usedPct;
+      ui.style(
+        rows[index].querySelector('.q-bar-fill'),
+        'width',
+        Math.max(0, Math.min(100, Number(percentage) || 0)) + '%'
+      );
+      texts = rowRefreshTexts(rows[index]);
+      ui.textNode(
+        texts.rel,
+        quotaWindow.detailText || remainingTime(quotaWindow.resetAt)
+      );
+      ui.textNode(texts.abs, cnDateTime(quotaWindow.resetAt));
+    }
+    updateCardMeta(cardId, source);
+    if (!windows.length) showUnavailableQuota(rows);
+  }
+
+  function selectWeatherIcon(key, description) {
+    var text = (String(key || '') + ' ' + String(description || '')).toLowerCase();
+    if (/thunder|雷/.test(text)) return 'ϟ';
+    if (/snow|雪/.test(text)) return '❄';
+    if (/rain|wet|雨/.test(text)) return '☂';
+    if (/fog|mist|haze|雾/.test(text)) return '≋';
+    if (/clear|sun|晴/.test(text)) return '☀';
+    return '☁';
+  }
+
+  function updateWeather(weather) {
+    if (!weather || !weather.ok) return;
+    ui.text('weatherTemp', Math.round(Number(weather.tempC)) + '°');
+    ui.html(
+      ui.find('weatherIcon'),
+      '<span style="font-size:36px;line-height:1">' +
+        selectWeatherIcon(weather.iconKey, weather.description) +
+      '</span>'
+    );
+    ui.html(
+      ui.find('weatherDetail'),
+      String(weather.description || '天气') +
+        ' · 体感 ' + Math.round(Number(weather.feelsLikeC)) +
+        '° · 湿度 ' + Math.round(Number(weather.humidity)) +
+        '%<br>风 ' + Math.round(Number(weather.windKph)) +
+        'km/h · ' + String(weather.place || '北京')
+    );
+    ui.text('weatherObs', '观测于 ' + cnDateTime(weather.observedAt));
+  }
+
+  function updateBalance(source) {
+    if (source && source.ok && typeof source.balance === 'number') {
+      ui.text('deepSeekBalance', '¥ ' + Number(source.balance).toFixed(2));
+      ui.text('deepSeekDetail', '实时余额 · 按量计费');
+    } else {
+      ui.text('deepSeekBalance', '¥ --');
+      ui.text('deepSeekDetail', '获取失败 · 等待下次采集');
+    }
+    updateCardMeta('cardDeepSeek', source);
+  }
+
+  function updateQuote(quote) {
+    if (!quote || !quote.text) return;
+    ui.textNode(doc.querySelector('.quote-text'), quote.text);
+    if (quote.source) {
+      ui.textNode(doc.querySelector('.quote-src'), '— ' + quote.source);
+    }
+  }
+
+  function cnDateTime(value) {
+    if (!value) return '';
+    var date = new Date(value);
+    if (isNaN(date.getTime())) return '';
+    return (date.getMonth() + 1) + '月' + date.getDate() + '日 ' +
+      twoDigits(date.getHours()) + ':' + twoDigits(date.getMinutes());
+  }
+
+  function updateCodexWatch(watch) {
+    var row = ui.find('codexWatchRow');
+    var detail = ui.find('codexWatchDetail');
+    if (!row || !detail) return;
+    if (!watch || !watch.active) {
+      ui.style(row, 'display', 'none');
+      ui.style(detail, 'display', 'none');
+      return;
+    }
+    var levelText = { elevated: '偏高', strong: '强烈' }[watch.level] || watch.level || '';
+    ui.text('codexWatchChance', watch.chancePct != null ? watch.chancePct + '%' : levelText);
+
+    var expires = timestamp(watch.expiresAt);
+    var sub;
+    if (expires) {
+      sub = cnDateTime(expires) + (Date.now() > expires ? ' 已过，待官网更新' : ' 前重置');
+    } else {
+      sub = String(watch.forecastWindow || '等待官方预告');
+    }
+    var observed = timestamp(watch.observedAt);
+    if (observed) {
+      var seenMinutes = Math.max(0, Math.floor((Date.now() - observed) / 60000));
+      var seenText = seenMinutes >= 60
+        ? Math.floor(seenMinutes / 60) + 'h' + twoDigits(seenMinutes % 60) + 'm'
+        : seenMinutes + 'm';
+      sub += ' · 观测于 ' + seenText + ' 前';
+    }
+    ui.textNode(detail, sub);
+    ui.style(row, 'display', 'flex');
+    ui.style(detail, 'display', 'block');
+  }
+
+  function updateCodexResets(info) {
+    var resetTs = timestamp(info && info.resetAt);
+    if (!info || !info.ok || !resetTs) return;
+    var elapsed = Date.now() - resetTs;
+    var minutes = Math.max(0, Math.floor(elapsed / 60000));
+    var days = Math.floor(minutes / 1440);
+    var hours = Math.floor((minutes % 1440) / 60);
+    var relative;
+    if (days) {
+      relative = days + 'd' + (hours ? ' ' + hours + 'h' : '') + ' ago';
+    } else if (hours) {
+      relative = hours + 'h' + twoDigits(minutes % 60) + 'm ago';
+    } else {
+      relative = minutes + 'm ago';
+    }
+    ui.text('codexResetRel', relative);
+    ui.text('codexResetAbs', cnDateTime(resetTs) + ' 重置 · codex-resets.com');
+    ui.text('statResets', info.resets || '--');
+    ui.text('statAvg', info.avgInterval || '--');
+    ui.text('statLongest', info.longestWait || '--');
+    updateCodexWatch(info.watch);
+  }
+
+  function present(data) {
+    var relativeNode;
+    if (!data || !data.updatedAt || !data.sources) return;
+    if (state.renderedAt && timestamp(data.updatedAt) < timestamp(state.renderedAt)) return;
+
+    state.latest = data;
+    if (data.updatedAt !== state.renderedAt) {
+      state.renderedAt = data.updatedAt;
+      updateWeather(data.weather);
+      updateQuotaCard('cardZai', data.sources.zai);
+      updateQuotaCard('cardCodex', data.sources.codex);
+      updateBalance(data.sources.deepseek);
+      updateCodexResets(data.codexResets);
+      updateQuote(data.quote);
+      relativeNode = ui.find('relTime');
+      if (relativeNode) ui.attribute(relativeNode, 'data-ts', data.updatedAt);
+    }
+    updateFreshness();
+  }
+
+  function requestData(url, canFallback) {
+    var separator;
+    if (!url || url.indexOf('__LIVE_') === 0) return;
+    separator = url.indexOf('?') < 0 ? '?' : '&';
+    attachScript(
+      url + separator + '_=' + Date.now(),
+      function () {
+        present(win.DASH_DATA);
+      },
+      function () {
+        if (canFallback && url !== settings.fallbackData) {
+          requestData(settings.fallbackData, false);
+        }
+      }
+    );
+  }
+
+  function refresh() {
+    requestDeviceStatus();
+    attachScript(
+      settings.endpointPointer + '?_=' + Date.now(),
+      function () {
+        var supplied = win.DASH_LIVE_ENDPOINT || '';
+        if (supplied && supplied.indexOf('__LIVE_') !== 0) state.endpoint = supplied;
+        requestData(state.endpoint, true);
+      },
+      function () {
+        state.endpoint = settings.fallbackData;
+        requestData(state.endpoint, false);
+      }
+    );
+  }
+
+  function scheduleRefresh() {
+    var now = new Date();
+    var milliseconds = now.getTime();
+    var delay;
+
+    if (isQuiet(now)) {
+      delay = millisecondsUntilMorning(now);
+    } else {
+      delay = (
+        settings.pollOffset -
+        (milliseconds % settings.pollEvery) +
+        settings.pollEvery
+      ) % settings.pollEvery;
+      if (delay < 250) delay += settings.pollEvery;
+    }
+
+    setTimeout(function () {
+      if (!isQuiet()) refresh();
+      scheduleRefresh();
+    }, delay);
+  }
+
+  function scheduleMinuteClock() {
+    var now = new Date();
+    var delay = isQuiet(now)
+      ? millisecondsUntilMorning(now)
+      : 60000 - (now.getTime() % 60000) + 100;
+    setTimeout(function () {
+      updateClock();
+      scheduleMinuteClock();
+    }, delay);
+  }
+
+  // ===== 详情模式：点击卡片只看它，再点任意位置返回 =====
+  var ZOOM_CARDS = ['cardZai', 'cardCodex', 'cardDeepSeek'];
+
+  function isZoomTarget(node) {
+    while (node && node !== doc.body) {
+      if (node.id && ZOOM_CARDS.indexOf(node.id) >= 0) return node;
+      if (node.className && String(node.className).indexOf('weather-card') >= 0) return node;
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function setZoom(card) {
+    var body = doc.body;
+    if (state.zoomedCard) {
+      state.zoomedCard.classList.remove('zoomed');
+      state.zoomedCard = null;
+    }
+    body.classList.remove('zoom-mode', 'zoom-card', 'zoom-weather');
+    if (!card) return;
+    state.zoomedCard = card;
+    card.classList.add('zoomed');
+    body.classList.add('zoom-mode');
+    body.classList.add(
+      card.id && ZOOM_CARDS.indexOf(card.id) >= 0 ? 'zoom-card' : 'zoom-weather'
+    );
+  }
+
+  function bindZoomToggle() {
+    doc.body.addEventListener('click', function (event) {
+      if (state.zoomedCard) {
+        setZoom(null);
+        return;
+      }
+      var target = isZoomTarget(event.target);
+      if (target) setZoom(target);
+    });
+  }
+
+  present(win.DASH_DATA);
+  updateClock();
+  updateBattery();
+  bindZoomToggle();
+  if (!isQuiet()) refresh();
+  scheduleRefresh();
+  scheduleMinuteClock();
+}(window, document));
+</script>
+<script>
+(function (win, doc) {
+  'use strict';
+
+  // 汉王墨水屏的安卓系统只认用户交互和媒体会话，页面动不动它不管。
+  // 所以这里双层保活：优先 Wake Lock（屏幕常亮锁），兜底静音视频循环
+  // （安卓把视频播放算作媒体使用，部分rom会因此放宽息屏计时）。
+  var wakeLock = null;
+  var video = null;
+
+  function requestWakeLock() {
+    var anyNavigator = win.navigator;
+    if (!anyNavigator.wakeLock || !anyNavigator.wakeLock.request) return;
+    anyNavigator.wakeLock.request('screen').then(function (lock) {
+      wakeLock = lock;
+      lock.addEventListener('release', function () {
+        wakeLock = null;
+      });
+    }).catch(function () {});
+  }
+
+  function startVideo() {
+    if (video) return;
+    video = doc.createElement('video');
+    video.src = 'awake.mp4';
+    video.muted = true;
+    video.setAttribute('muted', '');
+    video.setAttribute('playsinline', '');
+    video.setAttribute('autoplay', '');
+    video.loop = true;
+    video.style.cssText = 'position:fixed;left:0;bottom:0;width:2px;height:2px;'
+      + 'opacity:0.001;pointer-events:none;z-index:-1;';
+    var attempt = function () {
+      var playing = video.play();
+      if (playing && playing.catch) {
+        playing.catch(function () {
+          // 自动播放被拦时静默重试，不弹任何提示
+        });
+      }
+    };
+    video.addEventListener('pause', attempt);
+    doc.body.appendChild(video);
+    attempt();
+  }
+
+  function start() {
+    requestWakeLock();
+    startVideo();
+  }
+
+  // Wake Lock 被释放（切后台、系统回收）后自动补申请
+  doc.addEventListener('visibilitychange', function () {
+    if (doc.visibilityState === 'visible') {
+      if (!wakeLock) requestWakeLock();
+    }
+  });
+
+  if (doc.readyState === 'loading') {
+    doc.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+}(window, document));
+</script>
+</body>
+</html>
